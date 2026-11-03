@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShelfWise — Sign in</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="auth-layout">
+    <section class="auth-brand">
+      <div class="brand-lockup">
+        <img src="assets/logo-mark.png" alt="" class="brand-mark" id="authLogo">
+        <div class="auth-wordmark"><span class="shelf">Shelf</span><span class="wise">Wise</span></div>
+      </div>
+      <h2 class="tagline">
+        <span>Use what you have.</span>
+        <span class="t-coral">Waste less.</span>
+        <span class="t-orange">Buy smarter.</span>
+      </h2>
+      <p class="brand-copy">One shared shelf for your whole household. See what's about to expire, before it does.</p>
+      <div class="shelf-demo" aria-hidden="true">
+        <div class="demo-cards">
+          <div class="demo-card"><span class="e">🥬</span><div class="n">Spinach</div><div class="d high">Tomorrow</div></div>
+          <div class="demo-card"><span class="e">🥛</span><div class="n">Whole milk</div><div class="d mid">2 days</div></div>
+          <div class="demo-card"><span class="e">🍓</span><div class="n">Strawberries</div><div class="d safe">4 days</div></div>
+        </div>
+        <div class="shelf-rail"></div>
+      </div>
+    </section>
+
+    <section class="auth-panel">
+      <div class="auth-card">
+        <h1 id="authTitle">Create account</h1>
+        <p class="sub" id="authSub">Start wasting less in 15 seconds</p>
+
+        <div class="invite-banner hidden" id="inviteBanner" role="status"></div>
+
+        <div class="auth-tabs" role="tablist">
+          <button class="auth-tab active" id="tabSignup" type="button" onclick="setAuthMode('signup')">Create account</button>
+          <button class="auth-tab" id="tabLogin" type="button" onclick="setAuthMode('login')">Sign in</button>
+        </div>
+
+        <div class="auth-error hidden" id="authError" role="alert"></div>
+
+        <!-- Create account form -->
+        <form id="signupForm" onsubmit="return handleSignup(event)">
+          <div class="field">
+            <label for="suName">Full name</label>
+            <input type="text" id="suName" placeholder="Mia Chen" autocomplete="name" required>
+          </div>
+          <div class="field">
+            <label for="suEmail">Email address</label>
+            <input type="email" id="suEmail" placeholder="mia@example.com" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="suPassword">Password</label>
+            <input type="password" id="suPassword" placeholder="At least 6 characters" minlength="6" autocomplete="new-password" required>
+          </div>
+          <div class="field">
+            <label for="suHousehold">Household name <span class="hint">(or leave blank to join one)</span></label>
+            <input type="text" id="suHousehold" placeholder="The Chen-Ferreiras">
+          </div>
+          <div class="field">
+            <label for="suInvite">Invite code <span class="hint">(optional)</span></label>
+            <input type="text" id="suInvite" placeholder="e.g. CHENFR1" autocapitalize="characters">
+          </div>
+          <button type="submit" class="btn btn-cta btn-block">Create my kitchen</button>
+        </form>
+
+        <!-- Sign in form -->
+        <form id="loginForm" class="hidden" onsubmit="return handleLogin(event)">
+          <div class="field">
+            <label for="liEmail">Email address</label>
+            <input type="email" id="liEmail" placeholder="mia@example.com" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="liPassword">Password</label>
+            <input type="password" id="liPassword" placeholder="Your password" autocomplete="current-password" required>
+          </div>
+          <button type="submit" class="btn btn-cta btn-block">Sign in</button>
+        </form>
+
+        <p class="auth-switch" id="authSwitchLine">
+          Already have an account? <a href="#" onclick="setAuthMode('login');return false;">Sign in</a>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/theme.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>
