@@ -30,6 +30,14 @@ async function renderAnalyticsPage(main) {
   `;
 
   const barColors = ["#f7931e", "#ef4444", "#2f9e3a", "#7cd142", "#fa5a39", "#5cb812"];
+  // Set chart text colors according to the active theme
+  const isDarkMode =
+    document.documentElement.getAttribute("data-theme") === "dark";
+
+  const chartTextColor = isDarkMode ? "#ffffff" : "#4b6356";
+
+// Apply default text color to all Chart.js elements
+  Chart.defaults.color = chartTextColor;
   const ctx1 = document.getElementById("wasteChart");
   wasteChartInstance?.destroy();
   wasteChartInstance = new Chart(ctx1, {
@@ -42,8 +50,8 @@ async function renderAnalyticsPage(main) {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { grid: { display: false }, ticks: { color: getComputedStyle(document.body).getPropertyValue("--text-secondary") } },
-        y: { grid: { color: "rgba(128,128,128,.15)" }, ticks: { color: getComputedStyle(document.body).getPropertyValue("--text-secondary") } },
+        x: { grid: { display: false }, ticks: {color: chartTextColor} },
+        y: { grid: { color: "rgba(128,128,128,.15)" }, ticks: { color: chartTextColor} },
       },
     },
   });
@@ -63,8 +71,8 @@ async function renderAnalyticsPage(main) {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { grid: { display: false }, ticks: { color: getComputedStyle(document.body).getPropertyValue("--text-secondary") } },
-        y: { grid: { color: "rgba(128,128,128,.15)" }, ticks: { color: getComputedStyle(document.body).getPropertyValue("--text-secondary") } },
+        x: { grid: { display: false },ticks: {color: chartTextColor }},
+        y: { grid: { color: "rgba(128,128,128,.15)" }, ticks: { color: chartTextColor} },
       },
     },
   });
