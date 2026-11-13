@@ -6,9 +6,7 @@
 // its session cookie (login "succeeds" but you get bounced back to auth.html).
 // To point at a deployed backend, set window.SHELFWISE_API_BASE before this
 // script loads, e.g. <script>window.SHELFWISE_API_BASE = "https://api.example.com/api"</script>
-const API_BASE =
-  window.SHELFWISE_API_BASE ||
-  `http://${window.location.hostname || "localhost"}:5000/api`;
+const API_BASE = "/api";
 
 async function apiRequest(method, path, body) {
   const opts = {
