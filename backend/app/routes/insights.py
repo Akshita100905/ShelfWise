@@ -37,11 +37,14 @@ def dont_buy_search():
         return jsonify({"result": None})
 
     item = (
-        Item.query.filter(Item.household_id == household_id)
-        .filter(Item.name.ilike(f"%{query}%"))
-        .order_by(Item.expiry_date.asc().nullslast())
-        .first()
+    Item.query.filter(Item.household_id == household_id)
+    .filter(Item.name.ilike(f"%{query}%"))
+    .order_by(
+        Item.expiry_date.is_(None).asc(),
+        Item.expiry_date.asc()
     )
+    .first()
+)
     if not item:
         return jsonify({"result": {
             "found": False,
