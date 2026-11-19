@@ -11,7 +11,7 @@ async function renderUseFirstPage(main) {
 }
 
 /* ---------- Don't Buy Yet ---------- */
-const CATEGORY_CHIPS = [["all", "All"], ["produce", "🥦"], ["dairy", "🥛"], ["meat", "🥩"], ["bakery", "🍞"], ["grains", "🍝"]];
+const CATEGORY_CHIPS = [["all", "All"], ["produce", "🥬"], ["dairy", "🥛"], ["meat", "🥩"], ["bakery", "🥖"], ["grains", "🌾"]];
 let dontBuyCategory = "all";
 
 async function renderDontBuyPage(main) {
