@@ -1138,3 +1138,34 @@ h1, h2, h3, h4 { letter-spacing: -.015em; line-height: 1.15; }
   #wiResult .wi-metric-grid { gap: 9px; }
   #wiResult .wi-metric-grid > div { min-height: 82px; padding: 12px; }
 }
+
+/* What-If Simulator — make form and result use the same full content width */
+.wi-form-card,
+#wiResult {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.wi-form-card {
+  padding: clamp(22px, 3.2vw, 34px);
+}
+
+#wiResult {
+  padding: 0;
+}
+
+#wiResult .wi-result-card,
+#wiResult .wi-breakdown {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+}
+
+@media (max-width: 520px) {
+  .wi-form-card {
+    padding: 19px 16px;
+  }
+}
