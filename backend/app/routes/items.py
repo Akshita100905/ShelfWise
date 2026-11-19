@@ -46,6 +46,11 @@ def create_item():
     name = (data.get("name") or "").strip()
     if not name:
         return jsonify({"error": "Item name is required"}), 400
+    price_per_unit=(
+    float(data["price_per_unit"])
+    if data.get("price_per_unit") not in (None, "")
+    else None
+    ),
 
     item = Item(
         household_id=session["household_id"],
