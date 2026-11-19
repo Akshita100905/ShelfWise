@@ -116,11 +116,11 @@ class User(db.Model):
 
 
 CATEGORY_ICONS = {
-    "produce": "🥦",
+    "produce": "🥬",
     "dairy": "🥛",
     "meat": "🥩",
-    "bakery": "🍞",
-    "grains": "🍝",
+    "bakery": "🥖",
+    "grains": "🌾",
     "other": "📦",
 }
 
@@ -194,8 +194,11 @@ class PurchaseHistory(db.Model):
     quantity = db.Column(db.Float, default=1)
     unit = db.Column(db.String(30), default="unit")
     was_wasted = db.Column(db.Boolean, default=False)
+    # Optional actual purchase price per recorded unit (e.g. ₹/kg, ₹/litre).
     price_per_unit = db.Column(db.Float, nullable=True)
+    # Quantity from this purchase that was actually discarded.
     wasted_quantity = db.Column(db.Float, nullable=False, default=0)
+    # Allows a demo dataset to be safely removed without touching real activity.
     is_demo = db.Column(db.Boolean, nullable=False, default=False)
 
     def to_dict(self):
@@ -207,6 +210,9 @@ class PurchaseHistory(db.Model):
             "quantity": self.quantity,
             "unit": self.unit,
             "was_wasted": self.was_wasted,
+            "price_per_unit": self.price_per_unit,
+            "wasted_quantity": self.wasted_quantity or (self.quantity if self.was_wasted else 0),
+            "is_demo": self.is_demo,
         }
 
 
@@ -274,3 +280,4 @@ class ChatMessage(db.Model):
             "content": self.content,
             "created_at": self.created_at.isoformat(),
         }
+
