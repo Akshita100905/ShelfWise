@@ -1,6 +1,6 @@
 const ITEM_CATEGORIES = [
-  ["produce", "🥦", "Produce"], ["dairy", "🥛", "Dairy"], ["meat", "🥩", "Meat"],
-  ["bakery", "🍞", "Bakery"], ["grains", "🍝", "Grains"], ["other", "📦", "Other"],
+  ["produce", "🥬", "Produce"], ["dairy", "🥛", "Dairy"], ["meat", "🥩", "Meat"],
+  ["bakery", "🥖", "Bakery"], ["grains", "🌾", "Grains"], ["other", "📦", "Other"],
 ];
 const STORAGE_OPTIONS = [
   ["fridge", "🧊", "Fridge"], ["freezer", "❄️", "Freezer"],
@@ -82,6 +82,10 @@ function renderWizardStep() {
           <label>Expiry date</label>
           <input id="wExpiryDate" type="date">
         </div>
+        <div class="field">
+          <label>Purchase price per unit (₹, optional)</label>
+          <input id="wPrice" type="number" min="0" step="0.01">
+    </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="wizardState.step=1;renderWizardStep();">← Back</button>
