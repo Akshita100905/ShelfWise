@@ -1,7 +1,6 @@
 # ShelfWise
 
-Consumption-aware household inventory & waste-prevention app — built from the
-Figma prototype and the ShelfWise brand sheet.
+ShelfWise is a full-stack web application that helps households manage groceries, track expiry dates, and reduce food waste. It provides consumption-aware Buy/Don't Buy recommendations to prevent unnecessary purchases and identify products that need priority consumption. The application also features interactive analytics dashboards to monitor spending, consumption patterns, and household waste.
 
 **Stack:** HTML + CSS + vanilla JS (frontend, no framework) · Python/Flask (backend) · MySQL (hosted)
 
