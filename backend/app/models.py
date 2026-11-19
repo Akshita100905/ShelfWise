@@ -194,6 +194,9 @@ class PurchaseHistory(db.Model):
     quantity = db.Column(db.Float, default=1)
     unit = db.Column(db.String(30), default="unit")
     was_wasted = db.Column(db.Boolean, default=False)
+    price_per_unit = db.Column(db.Float, nullable=True)
+    wasted_quantity = db.Column(db.Float, nullable=False, default=0)
+    is_demo = db.Column(db.Boolean, nullable=False, default=False)
 
     def to_dict(self):
         return {
