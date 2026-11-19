@@ -1169,3 +1169,19 @@ h1, h2, h3, h4 { letter-spacing: -.015em; line-height: 1.15; }
     padding: 19px 16px;
   }
 }
+/* What-If Simulator: full-width, left-aligned layout */
+.main:has(.wi-form-card) {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.wi-form-card,
+#wiResult {
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+    margin-left: 0;
+    margin-right: 0;
+}
