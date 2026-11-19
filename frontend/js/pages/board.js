@@ -42,7 +42,7 @@ function noteHTML(n) {
       <div class="dot"></div>
       <div class="text">${escapeHtml(n.text)}</div>
       <div class="meta"><span class="avatar" style="width:16px;height:16px;font-size:8px;">${n.posted_by_initials}</span>${ago}</div>
-      <button class="buy-btn">Bought ✅</button>
+      <button class="buy-btn">Done ✅</button>
     </div>`;
 }
 
