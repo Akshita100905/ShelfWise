@@ -59,8 +59,8 @@ async function renderInventoryPage(main) {
   `;
 
   const filters = [
-    ["all", "All"], ["produce", "🥦 Produce"], ["dairy", "🥛 Dairy"],
-    ["meat", "🥩 Meat"], ["bakery", "🍞 Bakery"], ["grains", "🍝 Grains"], ["other", "📦 Other"],
+    ["all", "All"], ["produce", "🥬 Produce"], ["dairy", "🥛 Dairy"],
+    ["meat", "🥩 Meat"], ["bakery", "🥖 Bakery"], ["grains", "🌾 Grains"], ["other", "📦 Other"],
   ];
   document.getElementById("invFilters").innerHTML = filters.map(([val, label]) => `
     <button class="chip ${inventoryFilter === val ? "active" : ""}" data-val="${val}">${label}</button>
