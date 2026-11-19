@@ -95,3 +95,76 @@ def household_consumption_rate(db_session, household_id, category):
         return 0.0
     total_used = sum(r.quantity_used for r in rows)
     return total_used / 30.0
+
+
+# Product-specific defaults used only by the What-If simulator. These are
+# broad planning estimates, not food-safety guarantees; the user-provided
+# expiry date remains the source of truth for the simulation.
+PRODUCT_SHELF_LIFE = {
+    "tomato": 7, "tomatoes": 7, "spinach": 4, "lettuce": 5,
+    "apple": 21, "apples": 21, "banana": 5, "bananas": 5,
+    "potato": 30, "potatoes": 30, "onion": 30, "onions": 30,
+    "cucumber": 7, "carrot": 21, "carrots": 21,
+    "milk": 7, "curd": 7, "yogurt": 10, "paneer": 5,
+    "butter": 30, "cheese": 30, "bread": 5,
+    "chicken": 2, "fish": 2, "mutton": 3,
+    "rice": 365, "flour": 180, "atta": 90, "dal": 180,
+}
+
+
+def product_consumption_rate(db_session, household_id, product_name, category, unit):
+    """Return (units/day, source) using same-unit data to avoid mixing kg and pieces."""
+    from app.models import ConsumptionLog, Item
+    from datetime import timedelta
+
+    cutoff = date.today() - timedelta(days=30)
+    base = (db_session.query(ConsumptionLog)
+            .join(Item, ConsumptionLog.item_id == Item.id)
+            .filter(Item.household_id == household_id, Item.unit == unit)
+            .filter(ConsumptionLog.used_at >= cutoff))
+
+    exact_rows = base.filter(Item.name.ilike(product_name.strip())).all()
+    if exact_rows:
+        return sum(r.quantity_used for r in exact_rows) / 30.0, "product history"
+
+    category_rows = base.filter(Item.category == category).all()
+    if category_rows:
+        return sum(r.quantity_used for r in category_rows) / 30.0, "category history"
+
+    return 0.0, "no consumption history"
+
+
+def calculate_simulated_risk(category, quantity, expires_in_days, consumption_rate, storage, historical_waste_rate=0.0, product_name=""):
+    """Explainable 0-100 simulation score; does not create or modify inventory."""
+    shelf_life = PRODUCT_SHELF_LIFE.get(product_name.strip().lower(), CATEGORY_SHELF_LIFE.get(category, 21))
+    days_left = max(0, int(expires_in_days))
+
+    # Expiry contributes up to 55 points. A longer-life item is normalized
+    # against its category's typical shelf-life window.
+    expiry_component = 55 if days_left == 0 else round(55 * max(0, 1 - days_left / shelf_life))
+
+    if consumption_rate > 0 and days_left > 0:
+        days_to_finish = quantity / consumption_rate
+        quantity_component = 25 if days_to_finish > days_left else round(25 * min(1, days_to_finish / days_left))
+        estimated_consumed = min(quantity, consumption_rate * days_left)
+    else:
+        days_to_finish = None
+        quantity_component = min(25, round(quantity * 2))
+        estimated_consumed = None
+
+    # A conservative storage mismatch adjustment, not a shelf-life prediction.
+    storage_mismatch = (category in ("dairy", "meat") and storage in ("pantry", "counter"))
+    storage_component = 8 if storage_mismatch else 0
+    history_component = round(12 * max(0.0, min(1.0, historical_waste_rate)))
+
+    score = min(100, int(expiry_component + quantity_component + storage_component + history_component))
+    label = "High Risk" if score >= HIGH_RISK_THRESHOLD else "Expiring Soon" if score >= SOON_THRESHOLD else "Safe"
+    return {
+        "score": score, "label": label, "days_left": days_left,
+        "estimated_consumed": round(estimated_consumed, 2) if estimated_consumed is not None else None,
+        "estimated_remaining": round(max(0, quantity - estimated_consumed), 2) if estimated_consumed is not None else None,
+        "days_to_finish": round(days_to_finish, 1) if days_to_finish is not None else None,
+        "components": {"expiry": expiry_component, "quantity": quantity_component,
+                       "storage": storage_component, "purchase_history": history_component},
+    }
+
