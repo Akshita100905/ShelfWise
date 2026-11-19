@@ -965,3 +965,25 @@ h1, h2, h3, h4 { letter-spacing: -.015em; line-height: 1.15; }
 @media (max-width: 960px) { .voice-sheet { right: 16px; bottom: 84px; } }
 
 .voice-open .floating-hint { display: none; }
+
+
+/* What-If Simulator upgrade */
+.wi-form-card { padding: 22px; max-width: 760px; }
+.wi-form-card .field { margin-bottom: 18px; }
+.wi-form-card .field > label { display:block; margin-bottom:8px; font-size:13.5px; font-weight:800; color:var(--text-secondary); }
+.wi-form-card input:not([type=range]), .wi-form-card select { width:100%; min-height:44px; }
+.wi-fields-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.wi-expiry-card { background:var(--bg-alt); margin:8px 0 18px; padding:16px; }
+.wi-help { color:var(--text-muted); font-size:12.5px; margin:8px 0 0; }
+.wi-result-card { align-items:flex-start; }
+.wi-result-card .info { min-width:0; flex:1; }
+.wi-breakdown { padding:20px; margin-top:14px; }
+.wi-breakdown h3 { margin:0 0 14px; font-size:16px; }
+.wi-metric-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.wi-metric-grid > div { background:var(--bg-alt); border-radius:var(--radius-md); padding:12px; min-width:0; }
+.wi-metric-grid span { display:block; color:var(--text-muted); font-size:12px; margin-bottom:5px; }
+.wi-metric-grid strong { display:block; font-size:14px; overflow-wrap:anywhere; }
+.wi-components { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+.wi-components span { background:var(--bg-alt); border-radius:var(--radius-pill); padding:6px 9px; font-size:11px; color:var(--text-secondary); }
+.wi-disclaimer { color:var(--text-muted); font-size:12px; margin:10px 2px; }
+@media (max-width:560px) { .wi-form-card { padding:16px; } .wi-fields-grid { gap:10px; } .wi-metric-grid { gap:8px; } .wi-result-card { flex-direction:column; } }
