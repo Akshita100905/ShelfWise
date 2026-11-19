@@ -83,10 +83,12 @@ function renderWizardStep() {
           <input id="wExpiryDate" type="date">
         </div>
       </div>
-      <div class="field">
-          <label>Purchase price per unit (₹, optional)</label>
-          <input id="wPrice" type="number" min="0" step="0.01">
-    </div>
+      <div style="width: 100%; clear: both; margin-top: 12px;">
+  <div class="field" style="width: 100%; display: block;">
+    <label>Purchase price per unit (₹)</label>
+    <input id="wPrice" type="number" min="0" step="0.01">
+  </div>
+</div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="wizardState.step=1;renderWizardStep();">← Back</button>
         <button class="btn btn-primary" id="wSaveBtn">Save Item</button>
