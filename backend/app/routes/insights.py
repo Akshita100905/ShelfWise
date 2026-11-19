@@ -2,7 +2,8 @@ from datetime import date, timedelta
 from flask import Blueprint, request, jsonify, session
 from app.extensions import db
 from app.models import Item, PurchaseHistory
-from app.services.risk_engine import score_item, household_consumption_rate, CATEGORY_SHELF_LIFE
+from app.services.risk_engine import (score_item, household_consumption_rate, CATEGORY_SHELF_LIFE,
+                                      product_consumption_rate, calculate_simulated_risk, PRODUCT_SHELF_LIFE)
 from app.utils.decorators import household_required
 
 bp = Blueprint("insights", __name__, url_prefix="/api/insights")
@@ -90,36 +91,76 @@ def dont_buy_list():
 @bp.post("/what-if")
 @household_required
 def what_if():
-    """
-    Simulate buying a new item that expires in N days, and project the
-    resulting risk level — mirrors the prototype's What-If Simulator
-    (category chips + 'Expires in X days' slider + Simulate Purchase button).
-    """
-    data = request.get_json(force=True) or {}
-    category = data.get("category", "other")
-    expires_in_days = int(data.get("expires_in_days", 7))
-    quantity = float(data.get("quantity", 1))
+    """Simulate a hypothetical purchase without writing to inventory/history."""
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name", "")).strip()[:150]
+    category = str(data.get("category", "other")).strip().lower()
+    storage = str(data.get("storage", "fridge")).strip().lower()
+    unit = str(data.get("unit", "unit")).strip().lower()[:30]
 
-    class Fake:
-        pass
-    fake_item = Fake()
-    fake_item.category = category
-    fake_item.quantity = quantity
-    fake_item.expiry_date = date.today() + timedelta(days=expires_in_days)
-    fake_item.is_estimate = False
+    allowed_categories = {"produce", "dairy", "meat", "bakery", "grains", "other"}
+    allowed_storage = {"fridge", "freezer", "pantry", "counter"}
+    allowed_units = {"unit", "g", "kg", "ml", "litre", "pack", "bag", "loaf", "pots", "tub", "pieces"}
+    if not name:
+        return jsonify({"error": "Please enter a product name."}), 400
+    if category not in allowed_categories:
+        return jsonify({"error": "Please select a valid category."}), 400
+    if storage not in allowed_storage:
+        return jsonify({"error": "Please select a valid storage location."}), 400
+    if unit not in allowed_units:
+        return jsonify({"error": "Please select a valid unit."}), 400
 
-    rate = household_consumption_rate(db.session, session["household_id"], category)
-    risk = score_item(fake_item, rate)
+    try:
+        quantity = float(data.get("quantity", 1))
+        expires_in_days = int(data.get("expires_in_days", 7))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Quantity and expiry must be valid numbers."}), 400
+    if not (0 < quantity <= 100000):
+        return jsonify({"error": "Quantity must be greater than 0."}), 400
+    if not (0 <= expires_in_days <= 3650):
+        return jsonify({"error": "Expiry must be between 0 and 3650 days."}), 400
 
-    # simple 7-day projected waste curve for the chart in the prototype
+    household_id = session["household_id"]
+    rate, history_source = product_consumption_rate(
+        db.session, household_id, name, category, unit
+    )
+
+    # Purchase history is used only when the same product has prior purchases.
+    purchases = (PurchaseHistory.query
+                 .filter_by(household_id=household_id, category=category)
+                 .filter(PurchaseHistory.item_name.ilike(name), PurchaseHistory.unit == unit)
+                 .all())
+    total_purchased = sum(float(row.quantity or 0) for row in purchases)
+    total_wasted = sum(float(row.wasted_quantity or (row.quantity if row.was_wasted else 0)) for row in purchases)
+    historical_waste_rate = min(1.0, total_wasted / total_purchased) if total_purchased > 0 else 0.0
+
+    risk = calculate_simulated_risk(
+        category, quantity, expires_in_days, rate, storage, historical_waste_rate, name
+    )
+
     projection = []
     for day in range(7):
         remaining_days = max(0, expires_in_days - day)
-        projected_score = min(100, risk["score"] + day * 5) if remaining_days <= 2 else max(0, risk["score"] - day * 3)
-        projection.append(projected_score)
+        remaining_quantity = max(0, quantity - (rate * day if rate > 0 else 0))
+        if remaining_days == 0:
+            projected = min(100, risk["score"] + 12)
+        elif rate > 0:
+            projected = min(100, max(0, risk["score"] + (remaining_quantity / max(quantity, 0.01)) * 8 - day * 2))
+        else:
+            projected = min(100, max(0, risk["score"] + day * 2))
+        projection.append(int(projected))
 
     return jsonify({
-        "risk_score": risk["score"],
-        "risk_label": risk["label"],
-        "projection": projection,
+        "product_name": name, "category": category, "storage": storage,
+        "quantity": quantity, "unit": unit, "expires_in_days": expires_in_days,
+        "risk_score": risk["score"], "risk_label": risk["label"],
+        "projection": projection, "estimated_consumed": risk["estimated_consumed"],
+        "estimated_remaining": risk["estimated_remaining"],
+        "days_to_finish": risk["days_to_finish"],
+        "history_source": history_source,
+        "historical_waste_rate": round(historical_waste_rate * 100, 1),
+        "components": risk["components"],
+        "note": ("Based on your product's consumption history." if history_source == "product history"
+                 else "Using category-level consumption because product-specific history is unavailable."
+                 if history_source == "category history" else "No matching consumption history yet; estimate is based on expiry, quantity and storage."),
     })
