@@ -69,53 +69,119 @@ async function checkSupply() {
 
 /* ---------- What-If Simulator ---------- */
 let whatIfCategory = "produce";
+const WHAT_IF_CATEGORIES = [
+  ["produce", "🥬", "Produce"], ["dairy", "🥛", "Dairy"],
+  ["meat", "🥩", "Meat"], ["bakery", "🥖", "Bakery"],
+  ["grains", "🌾", "Grains"], ["other", "📦", "Other"],
+];
+const WHAT_IF_PRODUCTS = {
+  produce: ["Tomato", "Apple", "Banana", "Spinach", "Potato", "Onion", "Cucumber", "Carrot", "Lettuce"],
+  dairy: ["Milk", "Curd", "Paneer", "Butter", "Yogurt", "Cheese"],
+  meat: ["Chicken", "Fish", "Mutton"],
+  bakery: ["Bread", "Cake", "Buns"],
+  grains: ["Rice", "Flour", "Atta", "Dal", "Pulses"],
+  other: ["Eggs", "Juice", "Sauce", "Snacks"],
+};
+
 async function renderWhatIfPage(main) {
   main.innerHTML = `
-    <div class="page-header"><h1>What-If Simulator</h1><p>See what buying this would do to your waste risk</p></div>
-
-    <div class="category-icon-row" id="wiCats">
-      ${ITEM_CATEGORIES.map(([val, ic]) => `<button class="category-icon-btn ${whatIfCategory === val ? "active" : ""}" data-val="${val}">${ic}</button>`).join("")}
-    </div>
-
-    <div class="card slider-card">
-      <label>Expires in</label>
-      <div class="slider-row">
-        <input type="range" id="wiSlider" min="1" max="30" value="7">
-        <span class="days-val" id="wiDaysVal">7 days</span>
+    <div class="page-header"><h1>What-If Simulator</h1><p>Try a hypothetical purchase and see how much of it your household may use before expiry.</p></div>
+    <div class="card wi-form-card">
+      <div class="field">
+        <label for="wiName">What are you buying?</label>
+        <input id="wiName" list="wiProductSuggestions" type="text" maxlength="150" placeholder="e.g. Tomatoes">
+        <datalist id="wiProductSuggestions"></datalist>
       </div>
+      <div class="field">
+        <label>Category</label>
+        <div class="category-icon-row" id="wiCats">
+          ${WHAT_IF_CATEGORIES.map(([val, ic, label]) => `<button type="button" title="${label}" aria-label="${label}" class="category-icon-btn ${whatIfCategory === val ? "active" : ""}" data-val="${val}">${ic}</button>`).join("")}
+        </div>
+      </div>
+      <div class="wi-fields-grid">
+        <div class="field"><label for="wiQuantity">Quantity</label><input id="wiQuantity" type="number" min="0.1" max="100000" step="0.1" value="1"></div>
+        <div class="field"><label for="wiUnit">Unit</label><select id="wiUnit">${["unit", "g", "kg", "ml", "litre", "pack", "bag", "loaf", "pots", "tub", "pieces"].map(u => `<option value="${u}">${u}</option>`).join("")}</select></div>
+      </div>
+      <div class="field">
+        <label for="wiStorage">Where will you store it?</label>
+        <select id="wiStorage">
+          <option value="fridge">🧊 Refrigerator</option><option value="freezer">❄️ Freezer</option>
+          <option value="pantry">🗄️ Pantry</option><option value="counter">🍽️ Countertop</option>
+        </select>
+      </div>
+      <div class="card slider-card wi-expiry-card">
+        <label for="wiSlider">Expected expiry</label>
+        <div class="slider-row"><input type="range" id="wiSlider" min="0" max="60" value="7"><span class="days-val" id="wiDaysVal">7 days</span></div>
+        <p class="wi-help">Enter the number of days until the product expires.</p>
+      </div>
+      <button class="btn btn-cta btn-block" id="simulateBtn">Simulate purchase</button>
     </div>
-
-    <button class="btn btn-cta btn-block" id="simulateBtn">Simulate purchase</button>
-
-    <div id="wiResult" style="margin-top:18px;"></div>
+    <div id="wiResult" aria-live="polite" style="margin-top:18px;"></div>
   `;
-  document.querySelectorAll("#wiCats .category-icon-btn").forEach((btn) => {
+
+  const updateSuggestions = () => {
+    document.getElementById("wiProductSuggestions").innerHTML = (WHAT_IF_PRODUCTS[whatIfCategory] || []).map(n => `<option value="${n.replace(/&/g, "&amp;").replace(/\"/g, "&quot;")}"></option>`).join("");
+  };
+  updateSuggestions();
+  document.querySelectorAll("#wiCats .category-icon-btn").forEach(btn => {
     btn.onclick = () => {
       whatIfCategory = btn.dataset.val;
       document.querySelectorAll("#wiCats .category-icon-btn").forEach(b => b.classList.toggle("active", b === btn));
+      updateSuggestions();
     };
   });
   const slider = document.getElementById("wiSlider");
-  slider.oninput = () => { document.getElementById("wiDaysVal").textContent = `${slider.value} days`; };
+  slider.oninput = () => { document.getElementById("wiDaysVal").textContent = `${slider.value} ${Number(slider.value) === 1 ? "day" : "days"}`; };
   document.getElementById("simulateBtn").onclick = runWhatIf;
 }
 
 async function runWhatIf() {
-  const days = parseInt(document.getElementById("wiSlider").value, 10);
+  const name = document.getElementById("wiName").value.trim();
+  const quantity = Number(document.getElementById("wiQuantity").value);
   const resultEl = document.getElementById("wiResult");
-  resultEl.innerHTML = `<div class="empty-state">Simulating…</div>`;
-  const data = await api.post("/insights/what-if", { category: whatIfCategory, expires_in_days: days, quantity: 1 });
-  const color = riskColorVar(data.risk_label);
-  resultEl.innerHTML = `
-    <div class="card whatif-result">
-      ${riskRingSVG(data.risk_score, 60)}
-      <div class="info">
-        <h4 style="color:${color}">${data.risk_label}</h4>
-        <p>Projected Waste Risk Score</p>
-        <p>Projected waste risk over 7 days</p>
-        <div class="projection-bars">
-          ${data.projection.map(v => `<div class="bar" style="height:${Math.max(6, v)}%; background:${v >= 65 ? "var(--risk-high)" : v >= 40 ? "var(--risk-mid)" : "var(--risk-safe)"}"></div>`).join("")}
+  if (!name) { toast("Enter the product you want to simulate"); document.getElementById("wiName").focus(); return; }
+  if (!Number.isFinite(quantity) || quantity <= 0) { toast("Enter a quantity greater than zero"); document.getElementById("wiQuantity").focus(); return; }
+
+  const button = document.getElementById("simulateBtn");
+  button.disabled = true;
+  resultEl.innerHTML = `<div class="empty-state">Simulating your purchase…</div>`;
+  try {
+    const data = await api.post("/insights/what-if", {
+      name, category: whatIfCategory, storage: document.getElementById("wiStorage").value,
+      quantity, unit: document.getElementById("wiUnit").value,
+      expires_in_days: Number(document.getElementById("wiSlider").value),
+    });
+    const color = riskColorVar(data.risk_label);
+    const consumedText = data.estimated_consumed == null
+      ? "Not enough consumption data" : `${data.estimated_consumed} ${data.unit}`;
+    const remainingText = data.estimated_remaining == null
+      ? "Unavailable" : `${data.estimated_remaining} ${data.unit}`;
+    resultEl.innerHTML = `
+      <div class="card whatif-result wi-result-card">
+        ${riskRingSVG(data.risk_score, 68)}
+        <div class="info"><h4 style="color:${color}">${escapeHtml(data.risk_label)}</h4>
+          <p><strong>${escapeHtml(data.product_name)}</strong> · ${data.quantity} ${escapeHtml(data.unit)} · ${escapeHtml(data.storage)}</p>
+          <p>Projected waste risk score: <strong>${data.risk_score}/100</strong></p>
+          <div class="projection-bars">${data.projection.map(v => `<div class="bar" title="${v}/100" style="height:${Math.max(6, v)}%;background:${v >= 65 ? "var(--risk-high)" : v >= 40 ? "var(--risk-mid)" : "var(--risk-safe)"}"></div>`).join("")}</div>
+          <p class="wi-help">Projected risk over the next 7 days</p>
         </div>
       </div>
-    </div>`;
+      <div class="card wi-breakdown">
+        <h3>Purchase breakdown</h3>
+        <div class="wi-metric-grid">
+          <div><span>Expected expiry</span><strong>${data.expires_in_days} days</strong></div>
+          <div><span>Estimated consumed</span><strong>${consumedText}</strong></div>
+          <div><span>Potentially remaining</span><strong>${remainingText}</strong></div>
+          <div><span>Past waste rate</span><strong>${data.historical_waste_rate}%</strong></div>
+        </div>
+        <p class="wi-help">${escapeHtml(data.note)}</p>
+        <div class="wi-components"><span>Expiry: ${data.components.expiry}/55</span><span>Quantity: ${data.components.quantity}/25</span><span>Storage: ${data.components.storage}/8</span><span>Purchase history: ${data.components.purchase_history}/12</span></div>
+      </div>
+      <p class="wi-disclaimer">This is an estimate based on the information and history available. It does not add the product to your inventory.</p>
+    `;
+  } catch (err) {
+    resultEl.innerHTML = `<div class="card"><p class="error-text">${escapeHtml(err.message || "Unable to run the simulation. Please try again.")}</p></div>`;
+  } finally {
+    button.disabled = false;
+  }
 }
