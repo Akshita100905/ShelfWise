@@ -9,6 +9,7 @@
 let recognition = null;
 let listening = false;
 let voiceMuted = localStorage.getItem("shelfwise_voice_muted") === "1";
+let cancelVoiceRecognition = false;
 
 const SPEECH_LANGS = {
   es: "es-ES", fr: "fr-FR", de: "de-DE", pt: "pt-BR", it: "it-IT", hi: "hi-IN",
@@ -76,7 +77,10 @@ function paintMute() {
 }
 function openVoiceSheet() { ensureVoiceSheet().classList.add("open"); document.body.classList.add("voice-open"); }
 function closeVoiceSheet() {
-  if (listening) recognition?.abort();
+  cancelVoiceRecognition = true;
+  recognition?.abort();
+  listening = false;
+  document.getElementById("micFab")?.classList.remove("listening");
   cancelSpeech();
   document.getElementById("voiceSheet")?.classList.remove("open");
   document.body.classList.remove("voice-open");
@@ -123,15 +127,20 @@ const SPEECH_ERRORS = {
 
 // Called by the floating mic button and the mic inside the chat box.
 async function toggleVoice() {
-  if (listening) { recognition?.stop(); return; }
+  if (listening) {
+    recognition?.stop();
+    return;
+  }
   cancelSpeech();
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
-    vsRender("error", { message: "Voice input isn't supported in this browser. Try Chrome or Edge. You can also type a request below." });
+    vsRender("error", { message: "Voice input is not supported by this browser. Open ShelfWise in the latest Chrome or Edge, or type your request below." });
     return;
   }
+
   const fab = document.getElementById("micFab");
+  const mic = document.getElementById("vsMic");
   recognition = new SR();
   recognition.lang = speechLang();
   recognition.interimResults = true;
@@ -139,25 +148,61 @@ async function toggleVoice() {
   recognition.maxAlternatives = 1;
 
   let finalText = "", interim = "", failure = null;
-  recognition.onstart = () => { listening = true; fab.classList.add("listening"); vsRender("listening"); };
+  cancelVoiceRecognition = false;
+
+  recognition.onstart = () => {
+    listening = true;
+    fab?.classList.add("listening");
+    mic?.classList.add("on");
+    vsRender("listening");
+  };
+
   recognition.onresult = (ev) => {
     interim = "";
     for (let i = ev.resultIndex; i < ev.results.length; i++) {
-      const t = ev.results[i][0].transcript;
-      if (ev.results[i].isFinal) finalText += t; else interim += t;
+      const transcript = (ev.results[i][0]?.transcript || "").trim();
+      if (ev.results[i].isFinal) finalText += (finalText ? " " : "") + transcript;
+      else interim += (interim ? " " : "") + transcript;
     }
     vsRender("listening", { transcript: (finalText + " " + interim).trim() });
   };
-  recognition.onerror = (ev) => { failure = ev.error; };
+
+  recognition.onerror = (ev) => {
+    failure = ev.error || "unknown";
+    console.warn("ShelfWise speech recognition error:", failure, ev.message || "");
+  };
+
   recognition.onend = () => {
     listening = false;
-    fab.classList.remove("listening");
-    const heard = (finalText || interim).trim();
-    if (heard) processVoice(heard);
-    else if (failure === "aborted") return;
-    else vsRender("error", { message: SPEECH_ERRORS[failure] || "I didn't catch that. Tap the mic and try again." });
+    fab?.classList.remove("listening");
+    document.getElementById("vsMic")?.classList.remove("on");
+    if (cancelVoiceRecognition) return;
+
+    // Only submit a final transcript. Interim text is provisional and can be
+    // truncated by the browser when recognition ends.
+    const heard = finalText.trim();
+    if (heard) {
+      processVoice(heard);
+    } else {
+      vsRender("error", {
+        message: SPEECH_ERRORS[failure] ||
+          (failure ? `Speech recognition stopped (${failure}). Check microphone permission and try again.` :
+                    "I did not receive a clear transcript. Speak after the Listening message appears, then pause briefly.")
+      });
+    }
   };
-  try { recognition.start(); } catch (e) { vsRender("error", { message: "Couldn't start the microphone. Try again." }); }
+
+  try {
+    // start() must be called directly from the user's click/tap.
+    recognition.start();
+    openVoiceSheet();
+    vsRender("listening");
+  } catch (err) {
+    listening = false;
+    fab?.classList.remove("listening");
+    console.error("Could not start ShelfWise speech recognition:", err);
+    vsRender("error", { message: "Could not start microphone recognition. Check site microphone permission, close other apps using the mic, and try again." });
+  }
 }
 
 /* ---------------- speech -> AI -> actions -> answer ---------------- */
@@ -175,3 +220,4 @@ async function processVoice(text) {
 
 // Opening the panel from the floating button starts listening straight away.
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeVoiceSheet(); });
+
