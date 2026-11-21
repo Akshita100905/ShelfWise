@@ -74,7 +74,7 @@ class Config:
     GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
     # Tried automatically if the main model is overloaded (503) or rate limited (429).
     # Set to an empty value to disable the fallback.
-    GEMINI_FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-flash-lite-latest")
+    GEMINI_FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.5-flash-lite")
 
     # --- Invites / email (all optional) -------------------------------------
     # Where invite links should point (the URL your frontend is served from).
