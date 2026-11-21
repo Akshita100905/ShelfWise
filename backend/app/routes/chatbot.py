@@ -90,12 +90,17 @@ def _friendly_ai_error(e):
     if code == 429:
         return "ShelfWise AI has hit Gemini's rate limit or free-tier quota. Wait a minute and try again, or check usage in Google AI Studio."
     if code == 404:
-        return "Gemini doesn't recognise the model in GEMINI_MODEL. Try gemini-flash-latest."
+        # A 404 can be a model-name problem, but do not label every 404 that way.
+        if "model" in detail and any(word in detail for word in ("not found", "not supported", "does not exist")):
+            return (f"Gemini could not find model '{current_app.config.get('GEMINI_MODEL')}'. "
+                    "Check GEMINI_MODEL in the backend environment and redeploy/restart the server.")
+        return "Gemini returned HTTP 404, but the response does not identify an unknown model. Check the backend log for the full API error; this may be an endpoint or API configuration issue."
     if code and code >= 500:
-        return "Gemini is overloaded right now (it retried and tried a backup model too). Please try again in a minute."
+        return "Gemini is temporarily unavailable after retries. Please try again shortly."
     if type(e).__name__ in ("ConnectError", "ConnectTimeout", "ReadTimeout", "TimeoutException"):
         return "ShelfWise AI couldn't reach Gemini. Check the server's internet connection and try again."
-    return f"ShelfWise AI hit an unexpected error ({type(e).__name__}). Check the backend terminal for details."
+    status = getattr(e, "status", None)
+    return f"ShelfWise AI request failed ({type(e).__name__}, code={code or status or 'unknown'}). Check the backend terminal for the full error details."
 
 
 RETRYABLE_CODES = {429, 500, 502, 503, 504}   # Google-side hiccups worth retrying
@@ -138,7 +143,9 @@ def _ask_gemini(api_key, models, system_prompt, contents, tools):
                 if getattr(e, "code", None) not in RETRYABLE_CODES:
                     raise
                 current_app.logger.warning(
-                    "Gemini %s returned %s (attempt %d); %s", model, e.code, attempt + 1,
+                    "Gemini model %s returned code=%s status=%s (attempt %d): %s; %s",
+                    model, getattr(e, "code", None), getattr(e, "status", None), attempt + 1,
+                    getattr(e, "message", str(e)),
                     "retrying" if attempt == 0 else "trying next model")
                 if attempt == 0:
                     time.sleep(1.5)
@@ -174,6 +181,7 @@ def send_message():
             tools, actions = build_tools(household_id, user.id)
             main = current_app.config.get("GEMINI_MODEL") or "gemini-flash-latest"
             fallback = current_app.config.get("GEMINI_FALLBACK_MODEL") or ""
+            current_app.logger.info("ShelfWise AI using Gemini model=%s fallback=%s", main, fallback or "disabled")
             reply = _ask_gemini(
                 api_key,
                 [main] + ([fallback] if fallback and fallback != main else []),
