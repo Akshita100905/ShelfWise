@@ -54,36 +54,63 @@ async function addShoppingItem() {
 /* ---------- Purchase History ---------- */
 async function renderPurchaseHistoryPage(main) {
   main.innerHTML = `
-    <div class="page-header"><h1>Purchase History</h1><p>Everything you've added, most recent first</p></div>
+    <div class="page-header"><h1>Purchase History</h1><p>Browse purchases by month</p></div>
+    <div class="card" style="padding:16px 18px; margin-bottom:16px;">
+      <div class="field" style="margin:0;">
+        <label for="purchaseMonth">Select month</label>
+        <select id="purchaseMonth" aria-label="Select purchase month"></select>
+      </div>
+    </div>
     <div id="historyGroups"></div>
   `;
-  const { items } = await api.get("/items"); // current items double as recent purchase context
-  // Group by month using purchase_date
-  const groups = {};
-  items
-    .slice()
-    .sort((a, b) => (b.purchase_date || "").localeCompare(a.purchase_date || ""))
-    .forEach((item) => {
-      const d = item.purchase_date ? new Date(item.purchase_date) : new Date();
-      const label = d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-      groups[label] = groups[label] || [];
-      groups[label].push(item);
-    });
 
+  const selector = document.getElementById("purchaseMonth");
+  selector.onchange = () => loadPurchaseHistoryMonth(selector.value);
+  await loadPurchaseHistoryMonth("");
+}
+
+async function loadPurchaseHistoryMonth(month) {
   const container = document.getElementById("historyGroups");
-  container.innerHTML = Object.entries(groups).map(([label, rows]) => `
-    <div class="history-group">
-      <h4>${label}</h4>
-      ${rows.map(r => `
+  if (!container) return;
+  container.innerHTML = `<div class="empty-state">Loading purchase history…</div>`;
+  try {
+    const query = month ? `?month=${encodeURIComponent(month)}` : "";
+    const data = await api.get(`/analytics/purchases${query}`);
+    const selector = document.getElementById("purchaseMonth");
+    if (!selector) return;
+
+    // Rebuild options only when the available month list changes.
+    const options = data.months || [];
+    const signature = options.join("|");
+    if (selector.dataset.months !== signature) {
+      selector.innerHTML = options.map(m => {
+        const [year, monthNumber] = m.split("-").map(Number);
+        const label = new Date(year, monthNumber - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+        return `<option value="${escapeHtml(m)}">${escapeHtml(label)}</option>`;
+      }).join("");
+      selector.dataset.months = signature;
+    }
+    selector.value = data.selected_month || "";
+    selector.disabled = !options.length;
+
+    const purchases = data.purchases || [];
+    container.innerHTML = purchases.map(p => {
+      const [year, monthNumber, day] = (p.purchase_date || "").split("-").map(Number);
+      const dateLabel = p.purchase_date
+        ? new Date(year, monthNumber - 1, day).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+        : "";
+      const icon = ({ produce: "🥬", dairy: "🥛", meat: "🥩", bakery: "🥖", grains: "🌾", other: "📦" })[p.category] || "📦";
+      return `
         <div class="history-row">
-          <div class="emoji-badge">${r.icon}</div>
+          <div class="emoji-badge">${icon}</div>
           <div class="info">
-            <div class="name">${r.name}</div>
-            <div class="sub">${r.quantity} ${r.unit}</div>
+            <div class="name">${escapeHtml(p.item_name)}</div>
+            <div class="sub">${escapeHtml(p.quantity)} ${escapeHtml(p.unit)}${p.was_wasted ? " · Marked as wasted" : ""}</div>
           </div>
-          <div class="date">${r.purchase_date || ""}</div>
-        </div>
-      `).join("")}
-    </div>
-  `).join("") || `<div class="empty-state">No purchases logged yet.</div>`;
+          <div class="date">${escapeHtml(dateLabel)}</div>
+        </div>`;
+    }).join("") || `<div class="empty-state">${options.length ? "No purchases recorded for this month." : "No purchases logged yet."}</div>`;
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state">${escapeHtml(err.message || "Could not load purchase history.")}</div>`;
+  }
 }
