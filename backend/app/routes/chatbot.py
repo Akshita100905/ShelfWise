@@ -110,47 +110,59 @@ def _call_gemini(api_key, model, system_prompt, contents, tools):
     from google import genai
     from google.genai import types
 
-    client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model=model,
-        contents=contents,
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            tools=tools,
-            # The SDK runs our tool functions and feeds the results back to the model itself.
-            automatic_function_calling=types.AutomaticFunctionCallingConfig(maximum_remote_calls=8),
-            # Generous on purpose: newer Gemini models spend part of this budget
-            # "thinking", and too small a limit can return an empty answer.
-            max_output_tokens=1024,
-            temperature=0.6,
-        ),
+   client = genai.Client(
+    api_key=api_key,
+    http_options=types.HttpOptions(
+        timeout=20000,
+        retry_options=types.HttpRetryOptions(
+            attempts=1
+        )
     )
+)
     return (response.text or "").strip()
 
 
 def _ask_gemini(api_key, models, system_prompt, contents, tools):
-    """Ask Gemini, riding out temporary overloads: each model gets one quick retry,
-    then the next model in `models` is tried. Errors that retrying can't fix
-    (bad key, unknown model, ...) are raised straight away. The tools are shared
-    across attempts and are idempotent, so a retry never adds an item twice."""
-    last_error = None
-    for model in models:
-        for attempt in range(2):
-            try:
-                return _call_gemini(api_key, model, system_prompt, contents, tools)
-            except Exception as e:
-                last_error = e
-                if getattr(e, "code", None) not in RETRYABLE_CODES:
-                    raise
-                current_app.logger.warning(
-                    "Gemini model %s returned code=%s status=%s (attempt %d): %s; %s",
-                    model, getattr(e, "code", None), getattr(e, "status", None), attempt + 1,
-                    getattr(e, "message", str(e)),
-                    "retrying" if attempt == 0 else "trying next model")
-                if attempt == 0:
-                    time.sleep(1.5)
-    raise last_error
+    """Try each configured model once, moving to fallback
+    immediately when the primary model is unavailable."""
 
+    last_error = None
+
+    for index, model in enumerate(models):
+        try:
+            current_app.logger.info(
+                "Trying Gemini model: %s", model
+            )
+
+            return _call_gemini(
+                api_key,
+                model,
+                system_prompt,
+                contents,
+                tools
+            )
+
+        except Exception as e:
+            last_error = e
+            code = getattr(e, "code", None)
+
+            if code not in RETRYABLE_CODES:
+                raise
+
+            if index < len(models) - 1:
+                current_app.logger.warning(
+                    "Gemini model %s unavailable (code=%s). "
+                    "Switching to fallback model %s.",
+                    model,
+                    code,
+                    models[index + 1]
+                )
+            else:
+                current_app.logger.error(
+                    "All configured Gemini models failed."
+                )
+
+    raise last_error
 
 @bp.post("/message")
 @household_required
