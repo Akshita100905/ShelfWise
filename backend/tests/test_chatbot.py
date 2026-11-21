@@ -41,7 +41,7 @@ class FakeClient:
 with mock.patch("google.genai.Client", FakeClient):
     check("success returns Gemini's text", ask("What can I cook tonight?") == "Try a spinach omelette!")
 check("uses the configured key", seen["key"] == "fake-key")
-check("default model is gemini-flash-latest", seen["model"] == "gemini-flash-latest")
+check("default model is gemini-3.8-flash", seen["model"] == "gemini-3.8-flash")
 check("user's question is the last turn sent", seen["contents"][-1].parts[0].text == "What can I cook tonight?" and seen["contents"][-1].role == "user")
 check("system prompt carries the REAL inventory", "Spinach" in seen["system"] and "ShelfWise AI" in seen["system"])
 check("token limit is generous (>=1024)", seen["max"] >= 1024)
@@ -121,3 +121,4 @@ from google import genai
 check("genai.Client(api_key=...) builds", genai.Client(api_key="x") is not None)
 
 print(f"\n{passed} passed, {failed} failed"); sys.exit(1 if failed else 0)
+
