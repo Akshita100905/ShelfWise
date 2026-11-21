@@ -110,15 +110,30 @@ def _call_gemini(api_key, model, system_prompt, contents, tools):
     from google import genai
     from google.genai import types
 
-   client = genai.Client(
-    api_key=api_key,
-    http_options=types.HttpOptions(
-        timeout=20000,
-        retry_options=types.HttpRetryOptions(
-            attempts=1
+    client = genai.Client(
+        api_key=api_key,
+        http_options=types.HttpOptions(
+            timeout=20000,
+            retry_options=types.HttpRetryOptions(
+                attempts=1
+            )
         )
     )
-)
+
+    response = client.models.generate_content(
+        model=model,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            tools=tools,
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                maximum_remote_calls=8
+            ),
+            max_output_tokens=1024,
+            temperature=0.6,
+        ),
+    )
+
     return (response.text or "").strip()
 
 
