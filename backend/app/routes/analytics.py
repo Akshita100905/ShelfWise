@@ -124,11 +124,41 @@ def analytics_overview():
 @bp.get("/purchases")
 @household_required
 def recent_purchases():
-    rows = (PurchaseHistory.query
-            .filter_by(household_id=session["household_id"])
-            .order_by(PurchaseHistory.purchase_date.desc(), PurchaseHistory.id.desc())
-            .limit(30).all())
-    return jsonify({"purchases": [p.to_dict() for p in rows]})
+    """Return purchase records for a selected month, plus all months available."""
+    household_id = session["household_id"]
+    base = PurchaseHistory.query.filter_by(household_id=household_id)
+
+    # Build the month list from actual purchase dates so older months remain
+    # selectable even when they are outside the analytics overview window.
+    purchase_dates = [row[0] for row in
+        db.session.query(PurchaseHistory.purchase_date)
+        .filter_by(household_id=household_id)
+        .filter(PurchaseHistory.purchase_date.isnot(None))
+        .distinct().all()]
+    months = sorted({d.strftime("%Y-%m") for d in purchase_dates}, reverse=True)
+
+    requested_month = (request.args.get("month") or "").strip()
+    if requested_month and requested_month not in months:
+        return jsonify({"error": "No purchases found for the selected month",
+                        "months": months, "purchases": [], "selected_month": requested_month}), 200
+
+    selected_month = requested_month or (months[0] if months else "")
+    if not selected_month:
+        return jsonify({"months": [], "selected_month": "", "purchases": []})
+
+    try:
+        year, month = map(int, selected_month.split("-"))
+        start = date(year, month, 1)
+        end = date(year + (month == 12), 1 if month == 12 else month + 1, 1)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Month must use YYYY-MM format"}), 400
+
+    rows = (base.filter(PurchaseHistory.purchase_date >= start)
+                .filter(PurchaseHistory.purchase_date < end)
+                .order_by(PurchaseHistory.purchase_date.desc(), PurchaseHistory.id.desc())
+                .all())
+    return jsonify({"months": months, "selected_month": selected_month,
+                    "purchases": [p.to_dict() for p in rows]})
 
 
 @bp.post("/purchases/<int:purchase_id>/waste")
@@ -165,3 +195,4 @@ def remove_demo_data():
                .delete(synchronize_session=False))
     db.session.commit()
     return jsonify({"ok": True, "deleted_demo_purchases": deleted})
+
